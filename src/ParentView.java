@@ -1,4 +1,5 @@
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -7,6 +8,8 @@ import java.io.*;
 public class ParentView extends JFrame implements ActionListener {
 
     private JDesktopPane desk;
+    public static final String DIR = "./saves";
+    public static JFileChooser c;
 
     public ParentView() {
         // Standard Einstellungen einstellen.
@@ -24,32 +27,38 @@ public class ParentView extends JFrame implements ActionListener {
 
         // Erstelle ein Menubar und füge es dem Fenster hinzu.
         JMenuBar mb1 = new JMenuBar();
-        JMenu jMenuFile = new JMenu("Datei");
         JMenu jMenuGame = new JMenu("Spiel");
 
         JMenuItem jMenuItemGameNew = new JMenuItem("Neues Spiel");
         JMenuItem jMenuItemGameExit = new JMenuItem("Schließen");
-        JMenuItem jMenuItemFileSave = new JMenuItem("Speichern...");
-        JMenuItem jMenuItemFileOpen = new JMenuItem("Öffnen...");
 
         jMenuItemGameNew.setActionCommand("NEW");
         jMenuItemGameExit.setActionCommand("EXIT");
-        jMenuItemFileSave.setActionCommand("SAVE");
-        jMenuItemFileOpen.setActionCommand("OPEN");
 
         jMenuItemGameNew.addActionListener(this);
         jMenuItemGameExit.addActionListener(this);
-        jMenuItemFileSave.addActionListener(this);
-        jMenuItemFileOpen.addActionListener(this);
 
         jMenuGame.add(jMenuItemGameNew);
         jMenuGame.add(jMenuItemGameExit);
-        jMenuFile.add(jMenuItemFileSave);
-        jMenuFile.add(jMenuItemFileOpen);
 
         mb1.add(jMenuGame);
-        mb1.add(jMenuFile);
         setJMenuBar(mb1);
+
+        // Ordner erstellen falls noetig
+        File dir = new File(DIR);
+        if (!dir.exists()) {
+            try {
+                dir.mkdir();
+            } catch (Exception e) {
+                System.err.println("Failed to create dir:\n\r" + e);
+            }
+        }
+        // JFileChooser erstellen
+        c = new JFileChooser(dir);
+        c.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        FileNameExtensionFilter filter = new FileNameExtensionFilter(
+                "Save Files", "save");
+        c.setFileFilter(filter);
 
         // Zeige das Fenster.
         setVisible(true);
