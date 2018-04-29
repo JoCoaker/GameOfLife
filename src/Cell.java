@@ -1,10 +1,10 @@
 import javax.swing.*;
 import java.awt.*;
 import java.io.Serializable;
+import java.util.Observable;
 
 public class Cell implements Serializable {
     private boolean alive;
-    private transient JPanel p;
     private int x;
     private int y;
 
@@ -27,19 +27,16 @@ public class Cell implements Serializable {
         return alive;
     }
 
-    public void setAlive(boolean alive) {
+    public boolean setAlive(boolean alive) {
         this.alive = alive;
-        p.setBackground(this.alive ? Color.BLACK : Color.WHITE);
+        return alive;
+    }
+    public int getX() {
+        return x;
     }
 
-    public JPanel draw() {
-        if (p == null) {
-            p = new JPanel();
-            p.setBorder(BorderFactory.createStrokeBorder(new BasicStroke(0.25f), Color.BLACK));
-            p.setBackground(alive ? Color.BLACK : Color.WHITE);
-            p.setName(x + ";" + y);
-        }
-        return p;
+    public int getY() {
+        return y;
     }
 
     public Cell clone() {

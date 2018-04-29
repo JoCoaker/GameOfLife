@@ -1,24 +1,37 @@
+import javafx.scene.control.ColorPicker;
+
 import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.io.*;
+import java.util.Observable;
+import java.util.Observer;
 
-public class GridView extends JInternalFrame implements MouseListener, ActionListener {
+public class GridView extends JInternalFrame implements MouseListener, ActionListener, Observer {
 
     private GridModel gridModel;
+    private ParentView parentView;
 
-    private int height = 10;
-    private int width = 10;
-    private int speed = 250;
     private JCheckBoxMenuItem[] speedMenuItems;
     private JCheckBoxMenuItem[] sizeMenuItems;
+    private JPanel[][] panels;
 
+    private Color dead = Color.WHITE;
+    private Color alive = Color.BLACK;
 
-    public GridView() {
+    private boolean drawing = false;
+    private boolean drawingMode = false;
+    private Figure addFigure = null;
+
+    public GridView(GridModel gridModel, ParentView parentView) {
+        this.gridModel = gridModel;
+        this.parentView = parentView;
+
+        this.gridModel.addObserver(this);
+
         setClosable(true);
         setResizable(true);
         setIconifiable(true);
@@ -28,11 +41,22 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
         JMenuBar mb1 = new JMenuBar();
         JMenu jMenuMode = new JMenu("Modus");
         JMenu jMenuFile = new JMenu("Datei");
+        JMenu jMenuWindow = new JMenu("Fenster");
+        JMenu jMenuFigures = new JMenu("Figuren");
 
         JMenuItem jMenuItemStart = new JMenuItem("Start");
         JMenuItem jMenuItemStop = new JMenuItem("Stop");
         JMenuItem jMenuItemSpeed = new JMenu("Geschwindigkeit");
         JMenuItem jMenuItemSize = new JMenu("Groeße");
+        JMenuItem jMenuItemDrawingMode = new JMenuItem("Malen");
+        JMenuItem jMenuItemCopy = new JMenuItem("Kopieren");
+        JMenuItem jMenuItemDuplicate = new JMenuItem("Duplizieren");
+        JMenuItem jMenuItemRotate = new JMenuItem("Rotieren");
+        JMenuItem jMenuItemColorAlive = new JMenuItem("Farbe lebende");
+        JMenuItem jMenuItemColorDead = new JMenuItem("Farbe tote");
+        JMenuItem jMenuItemFiguresGlider = new JMenuItem("Gleiter");
+        JMenuItem jMenuItemFiguresGliderCanon = new JMenuItem("Gleiter Kanone");
+
 
         JMenuItem jMenuItemFileSave = new JMenuItem("Speichern...");
         JMenuItem jMenuItemFileOpen = new JMenuItem("Oeffnen");
@@ -41,6 +65,14 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
         jMenuItemStop.setActionCommand("STOP");
         jMenuItemFileSave.setActionCommand("SAVE");
         jMenuItemFileOpen.setActionCommand("OPEN");
+        jMenuItemDrawingMode.setActionCommand("DRAWING_MODE");
+        jMenuItemCopy.setActionCommand("COPY");
+        jMenuItemDuplicate.setActionCommand("DUPLICATE");
+        jMenuItemRotate.setActionCommand("ROTATE");
+        jMenuItemColorAlive.setActionCommand("COLOR_ALIVE");
+        jMenuItemColorDead.setActionCommand("COLOR_DEAD");
+        jMenuItemFiguresGlider.setActionCommand("FIGURES_GLIDER");
+        jMenuItemFiguresGliderCanon.setActionCommand("FIGURES_GLIDER_CANON");
 
         speedMenuItems = new JCheckBoxMenuItem[]{
                 new JCheckBoxMenuItem("1x"),
@@ -78,50 +110,110 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
         jMenuItemStop.addActionListener(this);
         jMenuItemFileSave.addActionListener(this);
         jMenuItemFileOpen.addActionListener(this);
+        jMenuItemDrawingMode.addActionListener(this);
+        jMenuItemCopy.addActionListener(this);
+        jMenuItemDuplicate.addActionListener(this);
+        jMenuItemRotate.addActionListener(this);
+        jMenuItemColorAlive.addActionListener(this);
+        jMenuItemColorDead.addActionListener(this);
+        jMenuItemFiguresGlider.addActionListener(this);
+        jMenuItemFiguresGliderCanon.addActionListener(this);
 
         jMenuMode.add(jMenuItemStart);
         jMenuMode.add(jMenuItemStop);
         jMenuMode.add(jMenuItemSpeed);
         jMenuMode.add(jMenuItemSize);
+        jMenuMode.add(jMenuItemDrawingMode);
         jMenuFile.add(jMenuItemFileSave);
         jMenuFile.add(jMenuItemFileOpen);
+        jMenuWindow.add(jMenuItemCopy);
+        jMenuWindow.add(jMenuItemDuplicate);
+        jMenuWindow.add(jMenuItemRotate);
+        jMenuWindow.add(jMenuItemColorAlive);
+        jMenuWindow.add(jMenuItemColorDead);
+        jMenuFigures.add(jMenuItemFiguresGlider);
+        jMenuFigures.add(jMenuItemFiguresGliderCanon);
 
-        mb1.add(jMenuMode);
         mb1.add(jMenuFile);
+        mb1.add(jMenuMode);
+        mb1.add(jMenuWindow);
+        mb1.add(jMenuFigures);
         setJMenuBar(mb1);
 
-        // Create Model and add to screen
-        gridModel = new GridModel(width, height, speed);
         this.draw();
-        gridModel.start();
+        this.gridModel.start();
     }
 
     private void draw() {
+        this.drawing = true;
         getContentPane().removeAll();
-        getContentPane().setLayout(new GridLayout(height, width));
+
+        getContentPane().setLayout(new GridLayout(gridModel.getWidth(), gridModel.getHeight()));
+        panels = new JPanel[gridModel.getWidth()][gridModel.getHeight()];
 
         Cell[][] cells = gridModel.getCells();
         for (int x = 0; x < cells.length; x++) {
             for (int y = 0; y < cells[x].length; y++) {
-                JPanel p = cells[x][y].draw();
-                p.addMouseListener(this);
-                getContentPane().add(p);
+                panels[x][y] = new JPanel();
+                panels[x][y].setBackground(cells[x][y].isAlive() ? alive : dead);
+                panels[x][y].setBorder(BorderFactory.createStrokeBorder(new BasicStroke(0.25f), Color.BLACK));
+                panels[x][y].setName(x + ";" + y);
+                panels[x][y].addMouseListener(this);
+                getContentPane().add(panels[x][y]);
             }
         }
         repaint();
         revalidate();
+        this.drawing = false;
+    }
+
+    @Override
+    public void update(Observable o, Object arg) {
+        if (arg == null) {
+            draw();
+            return;
+        }
+        if (arg instanceof Cell && !drawing) {
+            Cell c = (Cell) arg;
+
+            for (int x = 0; x < panels.length; x++) {
+                for (int y = 0; y < panels[x].length; y++) {
+                    if (panels[x][y].getName().equals(c.getX() + ";" + c.getY())) {
+                        panels[x][y].setBackground(c.isAlive() ? alive : dead);
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     @Override
     public void mouseReleased(MouseEvent e) {
-        JPanel p = (JPanel) e.getSource();
-        String[] s = p.getName().split(";");
-        if (s.length > 1) {
-            int x = Integer.valueOf(s[0]);
-            int y = Integer.valueOf(s[1]);
-
-            gridModel.updateAlive(x, y);
+        if (addFigure == null)
+            changeCellStatus((JPanel) e.getSource());
+        else {
+            JPanel p = (JPanel) e.getSource();
+            String[] s = p.getName().split(";");
+            if (s.length > 1) {
+                int offsetX = Integer.valueOf(s[0]);
+                int offsetY = Integer.valueOf(s[1]);
+                boolean[][] mapping = addFigure.getMapping();
+                for (int x = 0; x < mapping.length; x++) {
+                    int tmpOffsetX = 0;
+                    int tmpOffsetY = 0;
+                    for (int y = 0; y < mapping[x].length; y++) {
+                        if (tmpOffsetX + offsetX + x >= gridModel.getWidth()) {
+                            tmpOffsetX = -1 * (offsetX + x);
+                        }
+                        if (tmpOffsetY + offsetY + y >= gridModel.getHeight()) {
+                            tmpOffsetY = -1 * (offsetY + y);
+                        }
+                        panels[tmpOffsetX + offsetX + x][tmpOffsetY + offsetY + y].setBackground(gridModel.updateAlive(tmpOffsetX + offsetX + x, tmpOffsetY + offsetY + y, mapping[x][y]) ? alive : dead);
+                    }
+                }
+            }
         }
+
     }
 
     @Override
@@ -134,12 +226,45 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
 
     @Override
     public void mouseEntered(MouseEvent e) {
-
+        if (drawingMode) {
+            changeCellStatus((JPanel) e.getSource());
+        }
     }
 
     @Override
     public void mouseExited(MouseEvent e) {
+    }
 
+    private void changeCellStatus(JPanel p) {
+        String[] s = p.getName().split(";");
+        if (s.length > 1) {
+            int x = Integer.valueOf(s[0]);
+            int y = Integer.valueOf(s[1]);
+
+            p.setBackground(gridModel.updateAlive(x, y) ? alive : dead);
+        }
+    }
+
+    public void rotate() {
+        Cell[][] cells = gridModel.getCells();
+
+        for (int x = 0; x < gridModel.getWidth() / 2; x++) {
+            for (int y = x; y < gridModel.getHeight() - x - 1; y++) {
+                JPanel tmp = panels[x][y];
+
+                panels[x][y].setName(panels[y][gridModel.getWidth() - 1 - x].getName());
+                panels[x][y].setBackground(Color.WHITE);
+
+                panels[y][gridModel.getWidth() - 1 - x].setName(panels[gridModel.getWidth() - 1 - x][gridModel.getWidth() - 1 - y].getName());
+                panels[y][gridModel.getWidth() - 1 - x].setBackground(Color.WHITE);
+
+                panels[gridModel.getWidth() - 1 - x][gridModel.getWidth() - 1 - y].setName(panels[gridModel.getWidth() - 1 - y][x].getName());
+                panels[gridModel.getWidth() - 1 - x][gridModel.getWidth() - 1 - y].setBackground(Color.WHITE);
+
+                panels[gridModel.getWidth() - 1 - y][x].setName(tmp.getName());
+                panels[gridModel.getWidth() - 1 - y][x].setBackground(Color.WHITE);
+            }
+        }
     }
 
     @Override
@@ -150,6 +275,48 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                 break;
             case "STOP":
                 this.gridModel.stop();
+                break;
+            case "DRAWING_MODE":
+                this.drawingMode = !this.drawingMode;
+                break;
+            case "FIGURES_GLIDER":
+                this.addFigure = Figure.GLIDER;
+                break;
+            case "FIGURES_GLIDER_CANON":
+                this.addFigure = Figure.GLIDER_CANON;
+                break;
+            case "COPY":
+                GridModel gm = new GridModel(this.gridModel.getWidth(), this.gridModel.getHeight(), this.gridModel.getSpeed());
+                Cell[][] tmp = this.gridModel.getCells();
+
+                Cell[][] cells = new Cell[this.gridModel.getWidth()][this.gridModel.getHeight()];
+                for (int x = 0; x < tmp.length; x++) {
+                    for (int y = 0; y < tmp[x].length; y++) {
+                        cells[x][y] = tmp[x][y].clone();
+                    }
+                }
+
+                gm.setCells(cells);
+                this.parentView.addGrid(gm);
+                break;
+            case "DUPLICATE":
+                this.parentView.addGrid(this.gridModel);
+                break;
+            case "ROTATE":
+//                boolean wasRunning = this.gridModel.isRun();
+//                if (wasRunning)
+//                    this.gridModel.stop();
+
+                rotate();
+
+//                if (wasRunning)
+//                    this.gridModel.start();
+                break;
+            case "COLOR_ALIVE":
+                openColorPicker(alive, true);
+                break;
+            case "COLOR_DEAD":
+                openColorPicker(dead, false);
                 break;
             case "SPEED":
                 for (int i = 0; i < this.speedMenuItems.length; i++) {
@@ -178,9 +345,15 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                 }
                 break;
             case "SIZE":
+                boolean wasRunning2 = this.gridModel.isRun();
+                if (wasRunning2)
+                    this.gridModel.stop();
                 for (int i = 0; i < this.sizeMenuItems.length; i++) {
                     this.sizeMenuItems[i].setState(false);
                 }
+
+                int height = 10;
+                int width = 10;
 
                 switch (((JCheckBoxMenuItem) e.getSource()).getText()) {
                     case "10x10":
@@ -200,8 +373,11 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                         width = 100;
                         break;
                 }
-                this.gridModel.setSize(width, height);
+                if (height != 0)
+                    this.gridModel.setSize(width, height);
                 draw();
+                if (wasRunning2)
+                    this.gridModel.start();
                 break;
             case "SAVE":
                 this.gridModel.stop();
@@ -267,19 +443,21 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                         fs.close();
                         // Instanzvariablen Setzten
                         this.gridModel = gridModel;
-                        this.height = this.gridModel.getHeight();
-                        this.width = this.gridModel.getWidth();
+
+                        this.gridModel.addObserver(this);
 
                         for (int i = 0; i < this.speedMenuItems.length; i++) {
-                            if (speedMenuItems[i].getText().equals((double)this.gridModel.getSpeed() / 1000D + "x"))
+                            if (speedMenuItems[i].getText().equals((double) this.gridModel.getSpeed() / 1000D + "x")) {
                                 this.speedMenuItems[i].setState(true);
-                                else
-                            this.speedMenuItems[i].setState(false);
+                                i = this.speedMenuItems.length;
+                            } else
+                                this.speedMenuItems[i].setState(false);
                         }
                         for (int i = 0; i < this.sizeMenuItems.length; i++) {
-                            if (sizeMenuItems[i].getText().equals(this.gridModel.getWidth() + "x" + this.gridModel.getHeight()))
+                            if (sizeMenuItems[i].getText().equals(this.gridModel.getWidth() + "x" + this.gridModel.getHeight())) {
                                 this.sizeMenuItems[i].setState(true);
-                            else
+                                i = this.sizeMenuItems.length;
+                            } else
                                 this.sizeMenuItems[i].setState(false);
                         }
 
@@ -297,5 +475,16 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
 
         if (e.getSource() instanceof JCheckBoxMenuItem)
             ((JCheckBoxMenuItem) e.getSource()).setState(true);
+    }
+
+    private void openColorPicker(Color color, final boolean alive) {
+        Color c = JColorChooser.showDialog(this, alive ? "Lebende Farbe auswaehlen" : "Toten Farbe auswaehlen", color);
+        if (c != color) {
+            if (alive)
+                this.alive = c;
+            else
+                this.dead = c;
+            draw();
+        }
     }
 }

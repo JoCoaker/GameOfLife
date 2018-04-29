@@ -1,6 +1,7 @@
 import java.io.Serializable;
+import java.util.Observable;
 
-public class GridModel implements Runnable, Serializable {
+public class GridModel extends Observable implements Runnable, Serializable {
     private Cell[][] cells;
     private int width;
     private int height;
@@ -43,7 +44,7 @@ public class GridModel implements Runnable, Serializable {
 
                 // Check the cell's current state, and count its living neighbors.
                 boolean living = cellsClone[x][y].isAlive();
-                int count = getLivingNeighbors(x, y, cellsClone);
+                int count = getLivingwidtheighbors(x, y, cellsClone);
                 boolean result = false;
 
                 // Apply the rules and set the next state.
@@ -56,7 +57,11 @@ public class GridModel implements Runnable, Serializable {
                 if (!living && count == 3)
                     result = true;
 
-                this.cells[x][y].setAlive(result);
+                if (result != living) {
+                    this.cells[x][y].setAlive(result);
+                    setChanged();
+                    notifyObservers(this.cells[x][y]);
+                }
 
                 if (result)
                     oneAlive = true;
@@ -68,7 +73,7 @@ public class GridModel implements Runnable, Serializable {
 
     }
 
-    private int getLivingNeighbors(int x, int y, Cell[][] cells) {
+    private int getLivingwidtheighbors(int x, int y, Cell[][] cells) {
         int count = 0;
 
         // Check cell on the right.
@@ -181,14 +186,17 @@ public class GridModel implements Runnable, Serializable {
     private void fillCells() {
         for (int x = 0; x < cells.length; x++) {
             for (int y = 0; y < cells[x].length; y++) {
-                cells[x][y] = new Cell(x, y);
+                if (cells[x][y] == null)
+                    cells[x][y] = new Cell(x, y);
             }
         }
     }
 
-    public void updateAlive(int x, int y) {
-        if (x >= 0 && x < width && y >= 0 && y < height)
-            cells[x][y].setAlive(!cells[x][y].isAlive());
+    public boolean updateAlive(int x, int y) {
+        return cells[x][y].setAlive(!cells[x][y].isAlive());
+    }
+    public boolean updateAlive(int x, int y, boolean alive) {
+        return cells[x][y].setAlive(alive);
     }
 
     public void start() {
@@ -213,16 +221,26 @@ public class GridModel implements Runnable, Serializable {
     public int getHeight() {
         return height;
     }
+    public void setCells(Cell[][] cells) {
+        this.cells = cells;
+    }
 
     public void setSize(int width, int height) {
-        if (run)
-            run = false;
-
         this.height = height;
         this.width = width;
-        this.cells = new Cell[width][height];
+        Cell[][] cells = new Cell[width][height];
+        for (int x = 0; x < this.cells.length; x++) {
+            for (int y = 0; y < this.cells[x].length; y++) {
+                if (x < this.width && y < this.height)
+                    cells[x][y] = this.cells[x][y];
+            }
+        }
+
+        this.cells = cells;
 
         fillCells();
+        setChanged();
+        notifyObservers(null);
     }
 
     public int getSpeed() {
@@ -237,3 +255,27 @@ public class GridModel implements Runnable, Serializable {
         return run;
     }
 }
+//public enum Figure {
+//    GLIDER(new boolean[][]{{false, true, false}, {false, false, true}, {true, true, true}}),
+//    GLIDER_CANON(new boolean[][]{
+//            {false, false, false, false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,true, false,false,false,false,false,false,false,false,false,false,false},
+//            {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,true,false,false,false,false,false,false,false,false,false,false,false,false,false},
+//            {false,false,false,false,false,false,false,false,false,false,false,false,true,true,false,false,false,false,false,false,true,true,false,false,false,false,false,false,false,false,false,false,false,false,true,true},
+//            {false,false,false,false,false,false,false,false,false,false,false,true,false,false,false,true,false,false,false,false,true,true,false,false,false,false,false,false,false,false,false,false,false,false,true,true},
+//            {true,true,false,false,false,false,false,false,false,false,true,false,false,false,false,false,true,false,false,false,true,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
+//            {true,true,false,false,false,false,false,false,false,false,true,false,false,false,true,false,true,true,false,false,true,false,true,false,false,false,false,false,false,false,false,false,false,false,false,false},
+//            {false,false,false,false,false,false,false,false,false,false,true,false,false,false,false,false,true,false,false,false,false,false,false,false,true,false,false,false,false,false,false,false,false,false,false,false},
+//            {false,false,false,false,false,false,false,false,false,false,false,true,false,false,false,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false},
+//            {false,false,false,false,false,false,false,false,false,false,false,false,true,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false}
+//    });
+//
+//    private final boolean[][] mapping; // Instanzvariablen
+//
+//    Figure(boolean[][] mapping) { // Konstruktor
+//        this.mapping = mapping;
+//    }
+//
+//    public boolean[][] getMapping() { // Methode
+//        return mapping;
+//    }
+//}
