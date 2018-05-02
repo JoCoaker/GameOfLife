@@ -10,6 +10,16 @@ import java.io.*;
 import java.util.Observable;
 import java.util.Observer;
 
+/**
+ * GridView Klasse
+ * <p>
+ * Das Spielfeld.
+ *
+ * @author Felix Ruess (199261)
+ * @author Lukas Reichert (199034)
+ * @author Peter Tim Oliver Nauroth (198322)
+ * @version 1.0.0
+ */
 public class GridView extends JInternalFrame implements MouseListener, ActionListener, Observer {
 
     private GridModel gridModel;
@@ -26,12 +36,18 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
     private boolean drawingMode = false;
     private Figure addFigure = null;
 
+    /**
+     * Konstruktor.
+     *
+     * @param gridModel {GridModel}
+     * @param parentView {ParentView}
+     */
     public GridView(GridModel gridModel, ParentView parentView) {
         this.gridModel = gridModel;
         this.parentView = parentView;
-
+        // Observer hinzufuegen.
         this.gridModel.addObserver(this);
-
+        // Standardeinstellungen.
         setClosable(true);
         setResizable(true);
         setIconifiable(true);
@@ -56,8 +72,6 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
         JMenuItem jMenuItemColorDead = new JMenuItem("Farbe tote");
         JMenuItem jMenuItemFiguresGlider = new JMenuItem("Gleiter");
         JMenuItem jMenuItemFiguresGliderCanon = new JMenuItem("Gleiter Kanone");
-
-
         JMenuItem jMenuItemFileSave = new JMenuItem("Speichern...");
         JMenuItem jMenuItemFileOpen = new JMenuItem("Oeffnen");
 
@@ -139,10 +153,12 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
         mb1.add(jMenuWindow);
         mb1.add(jMenuFigures);
         setJMenuBar(mb1);
-
+        // Damit man das Schliessen des Fensters mitbekommt.
         addInternalFrameListener(new InternalFrameAdapter() {
             public void internalFrameClosing(InternalFrameEvent e) {
+                // Observer entfernen.
                 gridModel.deleteObserver(GridView.this);
+                // Ueberpruefen, ob man das GridModel schliessen muss.
                 if (gridModel.countObservers() == 0) {
                     gridModel.stop();
                 }
@@ -152,13 +168,17 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
         this.draw();
     }
 
+    /**
+     * Erstellt die JPanels (Den "Grid") neu.
+     */
     private void draw() {
         this.drawing = true;
         getContentPane().removeAll();
-
+        // Layout aendern
         getContentPane().setLayout(new GridLayout(gridModel.getWidth(), gridModel.getHeight()));
         panels = new JPanel[gridModel.getWidth()][gridModel.getHeight()];
 
+        // JPanels neu erstellen.
         Cell[][] cells = gridModel.getCells();
         for (int x = 0; x < cells.length; x++) {
             for (int y = 0; y < cells[x].length; y++) {
@@ -170,22 +190,97 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                 getContentPane().add(panels[x][y]);
             }
         }
+        // Fenster Komponente neu malen.
         repaint();
         revalidate();
         this.drawing = false;
     }
 
+    /**
+     * Zelle updaten.
+     *
+     * @param p
+     */
+    private void changeCellStatus(JPanel p) {
+        String[] s = p.getName().split(";");
+        if (s.length > 1) {
+            int x = Integer.valueOf(s[0]);
+            int y = Integer.valueOf(s[1]);
+            // Zelle updaten und die Hintergrundfarbe des JPanel's.
+            p.setBackground(gridModel.updateAlive(x, y) ? alive : dead);
+        }
+    }
+
+    /**
+     * Oeffnet den ColorPicker.
+     *
+     * @param color {Color}
+     * @param alive {boolean} Welche Farbe veraendert werden soll
+     */
+    private void openColorPicker(Color color, final boolean alive) {
+        Color c = JColorChooser.showDialog(this, alive ? "Lebende Farbe auswaehlen" : "Toten Farbe auswaehlen", color);
+        if (c != color) {
+            if (alive)
+                this.alive = c;
+            else
+                this.dead = c;
+            draw();
+        }
+    }
+
+    /**
+     * Rotiert des Spielfeld im Uhrzeigersinn um 90 Grad
+     */
+    public void rotate() {
+        int length = panels.length - 1;
+        // Von der Aessersten Spalten nach innen gehen
+        for (int i = 0; i <= (length) / 2; i++) {
+            for (int j = i; j < length - i; j++) {
+                // Die 4 zu vertauschenden JPanels identifizieren...
+                String p1 = panels[i][j].getName();
+                Color c1 = panels[i][j].getBackground();
+
+                String p2 = panels[j][length - i].getName();
+                Color c2 = panels[j][length - i].getBackground();
+
+                String p3 = panels[length - i][length - j].getName();
+                Color c3 = panels[length - i][length - j].getBackground();
+
+                String p4 = panels[length - j][i].getName();
+                Color c4 = panels[length - j][i].getBackground();
+                // ... und ihre Namen und Farbe austauschen.
+                panels[j][length - i].setName(p1);
+                panels[j][length - i].setBackground(c1);
+                panels[length - i][length - j].setName(p2);
+                panels[length - i][length - j].setBackground(c2);
+                panels[length - j][i].setName(p3);
+                panels[length - j][i].setBackground(c3);
+                panels[i][j].setName(p4);
+                panels[i][j].setBackground(c4);
+            }
+        }
+    }
+
+    /**
+     * Wird aufgerufen, wenn sich das Model geaendert hat.
+     *
+     * @param o {Observable}
+     * @param arg {Object}
+     */
     @Override
     public void update(Observable o, Object arg) {
         if (arg == null) {
+            // Fenster neu erstellen.
             draw();
             return;
         }
         if (arg instanceof Cell && !drawing) {
             Cell c = (Cell) arg;
-
+            // JPanel entspraechend anpassen.
+            // Ein For-Loop wurde gewaehlt, da er das JPanel anhand des Namens findet.
             for (int x = 0; x < panels.length; x++) {
                 for (int y = 0; y < panels[x].length; y++) {
+                    // JPanel anhand des Namens finden.
                     if (panels[x][y].getName().equals(c.getX() + ";" + c.getY())) {
                         panels[x][y].setBackground(c.isAlive() ? alive : dead);
                         return;
@@ -195,16 +290,25 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
         }
     }
 
+    /**
+     * Mitbekommen, wenn eine Zelle geklickt / eine Figure eingefuegt wird.
+     *
+     * @param e {MouseEvent}
+     */
     @Override
     public void mouseReleased(MouseEvent e) {
         if (addFigure == null)
+            // Normal klick.
             changeCellStatus((JPanel) e.getSource());
         else {
+            // Figure wird eingefuegt.
             JPanel p = (JPanel) e.getSource();
             String[] s = p.getName().split(";");
             if (s.length > 1) {
+                // Start definieren
                 int offsetX = Integer.valueOf(s[0]);
                 int offsetY = Integer.valueOf(s[1]);
+                // Figure anhand des Mappings einfuegen.
                 boolean[][] mapping = addFigure.getMapping();
                 for (int x = 0; x < mapping.length; x++) {
                     int tmpOffsetX = 0;
@@ -225,14 +329,11 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
 
     }
 
-    @Override
-    public void mouseClicked(MouseEvent e) {
-    }
-
-    @Override
-    public void mousePressed(MouseEvent e) {
-    }
-
+    /**
+     * Damit das "Malen" funktioniert.
+     *
+     * @param e
+     */
     @Override
     public void mouseEntered(MouseEvent e) {
         if (drawingMode) {
@@ -241,50 +342,8 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
     }
 
     @Override
-    public void mouseExited(MouseEvent e) {
-    }
-
-    private void changeCellStatus(JPanel p) {
-        String[] s = p.getName().split(";");
-        if (s.length > 1) {
-            int x = Integer.valueOf(s[0]);
-            int y = Integer.valueOf(s[1]);
-
-            p.setBackground(gridModel.updateAlive(x, y) ? alive : dead);
-        }
-    }
-
-    public void rotate() {
-        int length = panels.length - 1;
-
-        for (int i = 0; i <= (length) / 2; i++) {
-            for (int j = i; j < length - i; j++) {
-                String p1 = panels[i][j].getName();
-                Color c1 = panels[i][j].getBackground();
-
-                String p2 = panels[j][length - i].getName();
-                Color c2 = panels[j][length - i].getBackground();
-
-                String p3 = panels[length - i][length - j].getName();
-                Color c3 = panels[length - i][length - j].getBackground();
-
-                String p4 = panels[length - j][i].getName();
-                Color c4 = panels[length - j][i].getBackground();
-
-                panels[j][length - i].setName(p1);
-                panels[j][length - i].setBackground(c1);
-                panels[length - i][length - j].setName(p2);
-                panels[length - i][length - j].setBackground(c2);
-                panels[length - j][i].setName(p3);
-                panels[length - j][i].setBackground(c3);
-                panels[i][j].setName(p4);
-                panels[i][j].setBackground(c4);
-            }
-        }
-    }
-
-    @Override
     public void actionPerformed(ActionEvent e) {
+        // Schauen welches MenueItem geklickt wurde
         switch (e.getActionCommand()) {
             case "START":
                 this.gridModel.start();
@@ -302,6 +361,7 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                 this.addFigure = Figure.GLIDER_CANON;
                 break;
             case "COPY":
+                // Neue Instanz des Models erstellen und alle Zellen kopieren.
                 GridModel gm = new GridModel(this.gridModel.getWidth(), this.gridModel.getHeight(), this.gridModel.getSpeed());
                 Cell[][] tmp = this.gridModel.getCells();
 
@@ -311,11 +371,12 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                         cells[x][y] = tmp[x][y].clone();
                     }
                 }
-
                 gm.setCells(cells);
+                // Das Model in einem neuen Fenster oeffnen.
                 this.parentView.addGrid(gm);
                 break;
             case "DUPLICATE":
+                // Ein neues Fenster mit dem gleichen Model oeffnen.
                 this.parentView.addGrid(this.gridModel);
                 break;
             case "ROTATE":
@@ -328,10 +389,11 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                 openColorPicker(dead, false);
                 break;
             case "SPEED":
+                // CheckBoxes anpassen.
                 for (int i = 0; i < this.speedMenuItems.length; i++) {
                     this.speedMenuItems[i].setState(false);
                 }
-
+                // Geschwindigkeit dem entsprechend anpassen.
                 switch (((JCheckBoxMenuItem) e.getSource()).getText()) {
                     case "1x":
                         this.gridModel.setSpeed(1000);
@@ -354,16 +416,18 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                 }
                 break;
             case "SIZE":
-                boolean wasRunning2 = this.gridModel.isRun();
-                if (wasRunning2)
+                // Thread stoppen, wenn er gestartet ist.
+                boolean isRunning = this.gridModel.isRun();
+                if (isRunning)
                     this.gridModel.stop();
+                // CheckBoxes anpassen.
                 for (int i = 0; i < this.sizeMenuItems.length; i++) {
                     this.sizeMenuItems[i].setState(false);
                 }
-
+                // Standard groesse
                 int height = 10;
                 int width = 10;
-
+                // Groesse dem entsprechend anpassen.
                 switch (((JCheckBoxMenuItem) e.getSource()).getText()) {
                     case "10x10":
                         height = 10;
@@ -382,13 +446,19 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                         width = 100;
                         break;
                 }
+
+                // Groesse im Model anpassen.
                 if (height != 0)
                     this.gridModel.setSize(width, height);
+
+                // Fenster neu malen.
                 draw();
-                if (wasRunning2)
+                // Thread wieder starten wenn er gestartet war.
+                if (isRunning)
                     this.gridModel.start();
                 break;
             case "SAVE":
+                // Thread Stoppen.
                 this.gridModel.stop();
                 // Spiel Speichern.
                 // Dialog Fenster optionen setzten und oeffnen.
@@ -429,6 +499,7 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                 }
                 break;
             case "OPEN":
+                // Thread Stoppen.
                 this.gridModel.stop();
                 // Spielstand oeffnen.
                 // Dialog Fenster optionen setzten und oeffnen.
@@ -455,6 +526,7 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
 
                         this.gridModel.addObserver(this);
 
+                        // CheckBoxen anpassen.
                         for (int i = 0; i < this.speedMenuItems.length; i++) {
                             if (speedMenuItems[i].getText().equals((double) this.gridModel.getSpeed() / 1000D + "x")) {
                                 this.speedMenuItems[i].setState(true);
@@ -469,9 +541,9 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                             } else
                                 this.sizeMenuItems[i].setState(false);
                         }
-
+                        // Fenster-Titel setzten.
                         setTitle(ParentView.c.getSelectedFile().getName().substring(0, ParentView.c.getSelectedFile().getName().length() - 5));
-                        // Fenster neu Malen.
+                        // Fenster neu malen.
                         draw();
                     } catch (Exception ex) {
                         ex.printStackTrace();
@@ -481,19 +553,20 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                 }
                 break;
         }
-
+        // Wenn eine Checkbox geklickt wurde, dann diese als angekreuzt markieren.
         if (e.getSource() instanceof JCheckBoxMenuItem)
             ((JCheckBoxMenuItem) e.getSource()).setState(true);
     }
 
-    private void openColorPicker(Color color, final boolean alive) {
-        Color c = JColorChooser.showDialog(this, alive ? "Lebende Farbe auswaehlen" : "Toten Farbe auswaehlen", color);
-        if (c != color) {
-            if (alive)
-                this.alive = c;
-            else
-                this.dead = c;
-            draw();
-        }
+    @Override
+    public void mouseClicked(MouseEvent e) {
+    }
+
+    @Override
+    public void mousePressed(MouseEvent e) {
+    }
+
+    @Override
+    public void mouseExited(MouseEvent e) {
     }
 }

@@ -3,18 +3,31 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.*;
+import java.io.File;
 
+/**
+ * ParentView Klasse
+ * <p>
+ * Das Hauptfenster welches die Spielfelder in sich hat.
+ *
+ * @author Felix Ruess (199261)
+ * @author Lukas Reichert (199034)
+ * @author Peter Tim Oliver Nauroth (198322)
+ * @version 1.0.0
+ */
 public class ParentView extends JFrame implements ActionListener {
 
     private JDesktopPane desk;
     public static final String DIR = "./saves";
     public static JFileChooser c;
-
+    // Standardeinstellung fuer ein neues Spielfeld.
     private int height = 10;
     private int width = 10;
     private int speed = 250;
 
+    /**
+     * Konstruktor.
+     */
     public ParentView() {
         // Standard Einstellungen einstellen.
         setTitle("Game Of Life");
@@ -68,16 +81,25 @@ public class ParentView extends JFrame implements ActionListener {
         setVisible(true);
     }
 
+    /**
+     * Erstellt ein neues Spielfeld-Fenster mit einem neuen Model.
+     */
     public void addGrid() {
         addGrid(new GridModel(width, height, speed));
     }
 
+    /**
+     * Erstellt ein neues Spielfeld-Fenster mit dem uebergebenem Model.
+     *
+     * @param gridModel {GridModel}
+     */
     public void addGrid(GridModel gridModel) {
         GridView child = new GridView(gridModel, this);
-        child.setLocation(getContentPane().getWidth() / 2 - 200, getContentPane().getHeight() / 2 - 200); // Ort und
-        child.setSize(400, 400); // Groesse setzen
-        child.setDefaultCloseOperation(JInternalFrame.DISPOSE_ON_CLOSE); // Schiessoperation
-        desk.add(child); // Kindfenster einfuegen
+        child.setLocation(getContentPane().getWidth() / 2 - 200, getContentPane().getHeight() / 2 - 200);
+        child.setSize(400, 400);
+        child.setDefaultCloseOperation(JInternalFrame.DISPOSE_ON_CLOSE);
+        // Fenster in sich selbst einfuegen.
+        desk.add(child);
         child.setVisible(true);
     }
 
