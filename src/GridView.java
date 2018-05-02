@@ -1,6 +1,6 @@
-import javafx.scene.control.ColorPicker;
-
 import javax.swing.*;
+import javax.swing.event.InternalFrameAdapter;
+import javax.swing.event.InternalFrameEvent;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -140,8 +140,16 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
         mb1.add(jMenuFigures);
         setJMenuBar(mb1);
 
+        addInternalFrameListener(new InternalFrameAdapter() {
+            public void internalFrameClosing(InternalFrameEvent e) {
+                gridModel.deleteObserver(GridView.this);
+                if (gridModel.countObservers() == 0) {
+                    gridModel.stop();
+                }
+            }
+        });
+
         this.draw();
-        this.gridModel.start();
     }
 
     private void draw() {
@@ -211,6 +219,7 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                         panels[tmpOffsetX + offsetX + x][tmpOffsetY + offsetY + y].setBackground(gridModel.updateAlive(tmpOffsetX + offsetX + x, tmpOffsetY + offsetY + y, mapping[x][y]) ? alive : dead);
                     }
                 }
+                addFigure = null;
             }
         }
 
@@ -246,23 +255,30 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
     }
 
     public void rotate() {
-        Cell[][] cells = gridModel.getCells();
+        int length = panels.length - 1;
 
-        for (int x = 0; x < gridModel.getWidth() / 2; x++) {
-            for (int y = x; y < gridModel.getHeight() - x - 1; y++) {
-                JPanel tmp = panels[x][y];
+        for (int i = 0; i <= (length) / 2; i++) {
+            for (int j = i; j < length - i; j++) {
+                String p1 = panels[i][j].getName();
+                Color c1 = panels[i][j].getBackground();
 
-                panels[x][y].setName(panels[y][gridModel.getWidth() - 1 - x].getName());
-                panels[x][y].setBackground(Color.WHITE);
+                String p2 = panels[j][length - i].getName();
+                Color c2 = panels[j][length - i].getBackground();
 
-                panels[y][gridModel.getWidth() - 1 - x].setName(panels[gridModel.getWidth() - 1 - x][gridModel.getWidth() - 1 - y].getName());
-                panels[y][gridModel.getWidth() - 1 - x].setBackground(Color.WHITE);
+                String p3 = panels[length - i][length - j].getName();
+                Color c3 = panels[length - i][length - j].getBackground();
 
-                panels[gridModel.getWidth() - 1 - x][gridModel.getWidth() - 1 - y].setName(panels[gridModel.getWidth() - 1 - y][x].getName());
-                panels[gridModel.getWidth() - 1 - x][gridModel.getWidth() - 1 - y].setBackground(Color.WHITE);
+                String p4 = panels[length - j][i].getName();
+                Color c4 = panels[length - j][i].getBackground();
 
-                panels[gridModel.getWidth() - 1 - y][x].setName(tmp.getName());
-                panels[gridModel.getWidth() - 1 - y][x].setBackground(Color.WHITE);
+                panels[j][length - i].setName(p1);
+                panels[j][length - i].setBackground(c1);
+                panels[length - i][length - j].setName(p2);
+                panels[length - i][length - j].setBackground(c2);
+                panels[length - j][i].setName(p3);
+                panels[length - j][i].setBackground(c3);
+                panels[i][j].setName(p4);
+                panels[i][j].setBackground(c4);
             }
         }
     }
@@ -303,14 +319,7 @@ public class GridView extends JInternalFrame implements MouseListener, ActionLis
                 this.parentView.addGrid(this.gridModel);
                 break;
             case "ROTATE":
-//                boolean wasRunning = this.gridModel.isRun();
-//                if (wasRunning)
-//                    this.gridModel.stop();
-
                 rotate();
-
-//                if (wasRunning)
-//                    this.gridModel.start();
                 break;
             case "COLOR_ALIVE":
                 openColorPicker(alive, true);
